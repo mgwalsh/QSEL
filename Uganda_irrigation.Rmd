@@ -239,12 +239,14 @@ saveRDS(glm_stack, fname)
 dir.create("maps")
 
 # Generate spatial predictions
-rf.map <- predict(grids, blist$rf, type = "prob")
-xt.map <- predict(grids, blist$xgbTree, type = "prob")
-gl.map <- predict(grids, blist$glmnet, type = "prob")
+rfo.map <- predict(grids, blist$rf, type = "prob")
+xgb.map <- predict(grids, blist$xgbTree, type = "prob")
+glm.map <- predict(grids, blist$glmnet, type = "prob")
 spreds <- stack(rf.map, xt.map, gl.map)
 names(spreds) <- c("rf","xgbTreet", "glmnet")
-st.map <- predict(spreds, glm_stack, type = "prob")
+sta.map <- predict(spreds, glm_stack, type = "prob")
+
+# Write out geotif files
 ```
 
 ## Small area estimation of irrigation
