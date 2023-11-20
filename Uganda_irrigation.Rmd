@@ -1,13 +1,15 @@
 ---
-title: Uganda's water landscape -- Spatial predictions of smallholder irrigation and the commonly associated crops
-author: V. Modi, H. Siddiqui and M.G. Walsh
+title: Uganda's cropland landscapes -- Spatial predictions and area estimates of smallholder irrigation
+author: M.G. Walsh, V. Modi and H. Siddiqui 
 date: "`r format(Sys.time(), '%d, %B, %Y')`"
 output:
   html_document:
     toc: true
-    toc_depth: 2
+    toc_depth: 1
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
     fig_caption: true
-    keep_md: true
     number_sections: true
     css: style1.css
 ---
@@ -18,31 +20,51 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 
 # Introduction
 
-Irrigation plays a vital role in shaping the agricultural landscapes of Africa, a continent known for its diverse ecosystems, climatic variations, and farming challenges. With a rapidly growing population and unpredictable weather patterns exacerbated by climate change, the importance of irrigation in Africa cannot be overstated. 
+Irrigation plays a prominent role in shaping the cropland landscapes of Africa, a continent known for its diverse ecosystems, climatic variations, and farming challenges. With a rapidly growing population and unpredictable weather patterns exacerbated by climate change, the importance of irrigation in Africa cannot be overstated.
 
-* Irrigation will be essential for improving food security in Africa. Rain-fed agriculture remains susceptible to droughts and erratic rainfall, often leading to crop failures, food shortages, and poor nutritional quality produce. By providing controlled water supplies to crops, irrigation mitigates the risks associated with climatic uncertainties. Consistent water access allows for multiple cropping seasons, improved crop yields, and a diversified range of crops.
+## Importance of irrigation
 
-* Irrigation contributes to economic growth and/or poverty alleviation. Agriculture remains the mainstay of African economies, employing a large portion of the population. Improved irrigation systems can increase agricultural productivity, potentially leading to surplus produce that may be sold in local and international markets. This generates farmer income and stimulates economic growth at various levels, from rural communities to national economies.
+* Irrigation will be essential for improving food security in Africa. Rainfed agriculture remains susceptible to droughts leading to crop failures, food shortages, and poor nutritional quality produce. By providing controlled water supplies to crops, irrigation mitigates the risks associated with climatic uncertainties. Consistent water access allows for multiple cropping seasons, improved crop yields, improved nutrient use efficiencies, and a diversified range of high(er) value crops.
 
-* Irrigation can play a crucial role in environmental sustainability. Sustainable irrigation practices can lead to efficient water usage, preventing over-extraction of groundwater and reducing the strain on natural water sources. Properly managed irrigation can minimize soil erosion and degradation, preserving soil quality for future generations. Additionally, irrigation opens opportunities for controlled water management, enabling the cultivation of crops that are generally well-suited to local conditions, but which may not thrive under rain-fed agriculture.
+* Irrigation contributes to economic growth and/or poverty alleviation. Agriculture remains the mainstay of African economies, employing a large portion of smallholder farmers. Improved irrigation systems and practices can increase agricultural productivity, potentially leading to high quality surplus produce that may be sold in local and international markets. This generates farmer income and stimulates economic growth at various levels, within rural communities and national economies.
 
-* However, it is important to note that while irrigation offers numerous benefits, it should be managed carefully. Improper irrigation practices can lead to waterlogging, salinization, and environmental degradation. It is crucial to implement evidence-based, sustainable irrigation practices, embracing modern technology and knowledge sharing to ensure the responsible use of water resources.
+* Irrigation can play a crucial role in environmental and ecological sustainability. Sustainable irrigation practices can lead to efficient water usage, preventing over-extraction of groundwater and reducing the strain on natural water sources. Properly managed irrigation can minimize soil erosion and degradation, preserving soil quality for future generations. Additionally, irrigation opens opportunities for controlled water management, enabling the cultivation of crops that are generally well-suited to local conditions, but which may not thrive under rainfed agriculture.
 
-The main objectives of this notebook are to introduce R code for labeling, exploration and discovery of the spatial distribution of smallholder irrigation and the commonly associated crops in Uganda. This markdown notebook is maintained on [Github](https://github.com/mgwalsh/QSEL/blob/main/Uganda_irrigation.Rmd), and you can fork and alter it from there for your reference and use.
+However, it is important to note that while irrigation offers numerous benefits, it should be managed carefully. Improper irrigation practices can lead to water pollution, waterlogging, soil salinization, aquifer depletion, and other forms of environmental degradation. It is crucial to implement evidence-based, sustainable irrigation practices that embrace modern information technology and knowledge sharing to ensure the responsible use of water resources.
+
+## Key information gaps
+
+There are several information gaps, which if closed would contribute significantly to the agricultural research and development agendas in Uganda. Here are some of them: 
+
+* **Data-driven identification of existing and suitable irrigation areas**: There's a need for advanced data analytics to identify and monitor areas in Uganda where irrigation currently exists and/or would be beneficial. This involves analyzing a wide range earth science data (e.g., field and stakeholder surveys, remote sensing and GIS data), to pinpoint locations where irrigation systems could improve agricultural production and sustainability.
+
+* **Environmental impact assessments of irrigation practices**: Given the concerns about the potential negative environmental impacts of irrigation, such as waterlogging, salinization, and biodiversity loss, there is a research gap in developing spatially explicit models that assess the environmental footprint of different irrigation practices. This could include e.g., studies on water use efficiency, soil condition, and long-term ecological impacts.
+
+* **Irrigation and economic growth analyses**: While irrigation can contribute to economic growth, detailed data-driven studies are needed to quantify this potential impact. This involves analyzing how improvements in irrigation systems affect agricultural productivity, market prices, farmer incomes, and overall economic development at the local and national levels.
+
+* **Predictive analytics for climate change impacts**: Due to unpredictable weather patterns because of climate change, there is a gap in predictive models that forecast the impacts of these changes on irrigation needs and water availability. Developing models that can predict future climatic conditions and their implications on irrigation requirements would be valuable.
+
+* **Policy impact studies**: There is a need for research and information on the impact of different irrigation policies and programs. This includes assessing the effectiveness of current policies and exploring data-driven approaches to decision making and policy formulation.
+
+Closing these gaps would provide a broad scope for data and evidence-driven research for development that could significantly contribute to improvimg irrigation practices, enhancing food security, supporting economic viability and social equity, and ensuring environmental sustainability in Uganda.
+
+## Objectives of this notebook 
+
+The main objectives of this notebook are to introduce R code for labeling, exploration and discovery of the spatial distribution of smallholder irrigation in Uganda, and its use in small area estimation ([SAE](https://en.wikipedia.org/wiki/Small_area_estimation)). While foundational for closing key irrigation information gaps, both the spatial distribution and the associated area estimates, at different administrative / operational levels in Uganda are currently unknown. This markdown notebook is maintained and updated on [Github here](https://github.com/mgwalsh/QSEL/blob/main/Uganda_irrigation.Rmd), and you can fork and alter it from there for your reference and use.
 
 # Data setup
 
-The irrigation and crop observation data we shall be using were generated by the ... . To actually run this notebook, you will need to install and load the R-packages indicated in the chunk directly below.
+To actually run this notebook, you will need to install and load the R-packages indicated in the chunk directly below.
 
 ```{r}
 # Package names
-packages <- c("tidyverse", "htmlwidgets", "leaflet", "DT", "rgdal", "raster", "doParallel", "caret", 
-              "caretEnsemble", "randomForest", "xgboost", "glmnet", "pROC", "caTools")
+packages <- c("htmlwidgets", "leaflet", "DT", "rgdal", "raster", "doParallel", "caret", 
+              "caretEnsemble", "randomForest", "xgboost", "glmnet", "pROC", "caTools", "lme4")
 
 # Install packages
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
-  utils::install.packages(packages[!installed_packages])
+    utils::install.packages(packages[!installed_packages])
 }
 
 # Load packages
@@ -51,11 +73,11 @@ invisible(lapply(packages, library, character.only = TRUE))
 
 ## Load field survey data
 
-The next chunk loads the irrigation and crop survey data from your working directory. Note that at the time of the writing of this notebook these data are not publicly available. ...
+The georeferenced irrigation survey data we shall be using were generated by the ... . The next chunk loads the irrigation and crop survey data from your working directory. We also include observations regarding the distribution of commonly irrigated crops. Modeling these is the subject of a separate (companion) notebook. Note that at the time of the writing of this notebook these data were not publicly available. We will try to convince the powers that be and the data owners that making the data publicly available is a useful thing to do that adds to their value.
 
 ```{r, results = 'hide'}
 plots <- read.table("UG_irrigated_plots.csv", header = T, sep = ",")
-plots$irrigated <- ifelse(plots$ir1 == 'yes' & plots$ws1 == 'yes', 'a', 'b') ## a = irrigated, b = not irrigated
+plots$irrigated <- ifelse(plots$ir1 == 'yes' & plots$ws1 == 'yes', 'a', 'b') ## a = present, b = absent
 plots$irrigated <- as.factor(plots$irrigated)
 crops <- read.table("UG_irrigated_crops.csv", header = T, sep = ",")
 crops$onion.1 <- NULL ## removes the duplicated onion column
@@ -63,12 +85,12 @@ irdat <- merge(plots, crops, by="sid")
 # irdat <- irdat[!duplicated(irdat[,4]), ] ## removes observations that have identical time stamps
 ```
 
-An overview map of where the (non-duplicated) irrigation observations were collected in Uganda is generated by the next chunk. You can click and zoom into the individual locations that have been recorded thus far. Irrigated locations are shown in blue and the non-irrigated locations are shown in red.
+An overview map of where the irrigation observations were collected in Uganda is generated by the next chunk. You can click and zoom into the individual locations that have been recorded thus far. Locations where irrigation is present are shown in blue, and locations where irrigation is absent are shown in red.
 
 ```{r}
-col <- ifelse(irdat$irrigated == TRUE, "blue", "red")
+col <- ifelse(irdat$irrigated == 'a', "blue", "red")
 
-# CropScout sample locations
+# Sample locations
 w <- leaflet() %>%
   setView(lng = mean(irdat$lon), lat = mean(irdat$lat), zoom = 7) %>%
   addProviderTiles(providers$OpenStreetMap.Mapnik) %>%
@@ -85,25 +107,31 @@ w ## plot widget
 
 ## Load and extract raster features
 
-You can download all of the raster files that are needed for running the next chunks from our OSF repository [here](https://osf.io/ehsyg). Place the *.zip file into a directory called ./grids.
+You can download all of the raster files that are needed for running the next chunks from our OSF repository [here](https://osf.io/ehsyg). Place the .zip file into a directory called ./grids.
 
 ```{r}
-# Unzip files into a sub-directory called "grids"
-dir.create("grids", showWarnings=F)
+dir.create("grids", showWarnings = FALSE)
+dir.create("figures", showWarnings = FALSE)
+dir.create("learners", showWarnings = FALSE)
+dir.create("maps", showWarnings = FALSE)
+dir.create("data", showWarnings = FALSE)
+dir.create("sae", showWarnings = FALSE)
 
-# Load rasters
-glist <- list.files(path="./grids", pattern="tif", full.names = T)
+# Load rasters from the grids directory
+# unzip("./grids/UG_grids_250m.zip", exdir = "./grids", overwrite = TRUE)
+glist <- list.files(path="./grids", pattern="tif", full.names = TRUE)
 grids <- stack(glist)
 
 # Survey variable selection and projection
-vars <- c("sid", "lon", "lat", "s2", "s3", "ir1", "ws1", "irrigated", "tomato", "cabbage", "eggplant",
-          "greens", "peppers", "pulses", "onion", "nuts", "banana", "melon", "passion", "taro", "potato",
-          "beans", "cane", "sunflower", "papaya", "pineapple", "rice")
+vars <- c('sid', 'lon', 'lat', 's2', 's3', 'ir1', 'ws1', 'irrigated', 'tomato',
+          'cabbage', 'eggplant', 'greens', 'peppers', 'pulses', 'onion', 'nuts',
+          'banana', 'melon', 'passion', 'taro', 'potato', 'beans', 'cane', 'sunflower',
+          'papaya', 'pineapple', 'rice')
 irdat <- irdat[vars] ## select variables
 
 ir.proj <- project(cbind(irdat$lon, irdat$lat), "+proj=laea +ellps=WGS84 +lon_0=20 +lat_0=5
-                                 +units=m +no_defs")
-colnames(ir.proj) <- c("x","y")
+                   +units=m +no_defs")
+colnames(ir.proj) <- c('x','y')
 irdat <- cbind(irdat, ir.proj)
 coordinates(irdat) <- ~x+y
 projection(irdat) <- projection(grids)
@@ -111,21 +139,25 @@ projection(irdat) <- projection(grids)
 # Extract gridded variables at survey locations
 irgrid <- extract(grids, irdat)
 irdat <- as.data.frame(cbind(irdat, irgrid))
-# irdat <- irdat %>% 
-  mutate_at('LCCS', as.factor) %>%
-  rename(
-    MLAT = mlat.PERMANENT,
-    MLON = mlon.PERMANENT)
+
+# Write out `irdat` dataframe for reuse
+write.csv(irdat, "./data/UG_irigation_all.csv", row.names = FALSE)
 ```
 
-The pre-processed Uganda raster data (in the `grids` raster stack) we will be using were derived and projected (to CRS = +proj=laea +ellps=WGS84 +lon_0=20 +lat_0=5 +units=m +no_defs) from their primary open sources. Short descriptions of the 34 included rasters are listed in the table below. We will also be using the most recent [GeoSurvey](https://geosurvey.qed.ai/) based land cover map of Uganda. You can find out how the constituent layers of this map were predicted by downloading the AfSIS land cover classification notebook from our OSF repository [here](https://osf.io/shkxp/).
+The pre-processed Uganda raster data (in the `grids` raster stack) we will be using were derived and projected (to CRS = +proj=laea +ellps=WGS84 +lon_0=20 +lat_0=5 +units=m +no_defs) from their primary open sources. Short descriptions of the 34 included rasters, original source links and the field survey's metadata are shown in the table below. 
 
-```{r lccs_legend, echo=FALSE, fig.align="center", fig.cap="**Figure ??:** GeoSurvey-based land cover map and area estimates for Uganda (2020).", out.width = '80%'}
-
-knitr::include_graphics("LCCS.png")
+\
+```{r, echo = FALSE, results = 'asis'}
+vars <- read.table("./figures/UG_irrigation_survey_meta.csv", header = T, sep = ",")
+datatable(vars)
 ```
 
-Note that the areas highlighted by the red boxes in the legend of Figure ?? are of primary interest here because they identify the main four cropland cover types in the country. Any irrigated croplands would therefore be a subset of these 4 types.
+We will also be using the most recent [GeoSurvey](https://geosurvey.qed.ai/) to based land cover map of Uganda. Note that the areas highlighted by the red boxes in the legend of Figure 1 are of primary interest here because they identify the main cropland cover types in the country, which define our overall [Region of Interest (ROI)](https://en.wikipedia.org/wiki/Region_of_interest) in Uganda. Any areas falling outside of the ROI are masked out of subsequent spatial predictions and the small area estimates. You can find out how the constituent layers of this map were created by downloading the AfSIS land cover classification notebook from our OSF repository [here](https://osf.io/shkxp/). It is also on the AfSIS website at https://africasoils.info.
+
+```{r ug_lccs, echo=FALSE, fig.align="center", fig.cap="**Figure 1.** GeoSurvey-based land cover map and area estimates for Uganda (2020).", out.width = '95%'}
+
+knitr::include_graphics("./figures/LCCS.png")
+```
 
 ```{r, echo = FALSE}
 rm(list=setdiff(ls(), c("irdat", "grids"))) ## scrubs extraneous objects in memory
@@ -133,17 +165,19 @@ rm(list=setdiff(ls(), c("irdat", "grids"))) ## scrubs extraneous objects in memo
 
 # Predicting irrigation
 
-We will be using a **stacked generalization** approach ([Wolpert, 1992](http://machine-learning.martinsewell.com/ensembles/stacking/Wolpert1992.pdf)), which is an ensemble learning technique that aims to improve the accuracy of predictions by combining multiple MLAs. Instead of relying on a single model's output, stacking trains a meta-model using the predictions of several base-models. The basic workflow in our context is as follows:
+We are using a **stacked generalization** approach ([Wolpert, 1992](http://machine-learning.martinsewell.com/ensembles/stacking/Wolpert1992.pdf)) in this section of the notebook. Stacked Generalization, often referred to as stacking, is an ensemble learning technique that seeks to improve model predictions by combining the outputs of multiple models, potentially of different types, in a strategic manner. This is how it works::
 
 * **Split the data**: into representative training (calibration) and test (validation) sets.
 
-* **Base-model training**: Train multiple base-models on the calibration set with J-fold cross-validation. Use the trained base-models to predict the labels from the original features. These predictions become the "meta-features" for the next layer in the stacked model.
+* **Base Models**: You start by training several different predictive models using your training dataset. These models can be of any type and are often diverse, such as decision trees, support vector machines, neural networks, etc. They are known as base (or level-0) models.
 
-* **Model stacking** Stack on the meta-features, using the validation set's labels as the target ... with J-fold cross-validation.
+* **Hold-Out or Cross-Validation Predictions**: Next, you use these base models to make predictions on a separate dataset, which can either be a hold-out validation set or generated through cross-validation. Essentially, you're interested in capturing the predictions each model makes on data it hasn't seen before.
 
-* **Prediction**: Generate predictions for new data i.e., the 33 rasters (`grids`) in our case. The stacked-model then makes the final predictions based on these, rather than on the original features.
+* **Stacking**: The predictions made by the base models are then used as input features to train a higher-level model, known as a meta-model or a level-1 model. The idea is that this meta-model learns how to best combine the predictions from the base models to make a final prediction.
 
-The intuition behind stacking is that while individual models may have particular strengths and weaknesses, a meta-model may be able to learn the best way to combine their predictions, to achieve better overall performance. Stacking has been shown to outperform other ensemble methods in various tasks, given a careful choice of features, base and meta-models ([Kaggle AI report, 2023](https://www.kaggle.com/AI-Report-2023)). 
+* **Final Prediction**: When you need to make predictions on new data, you first run the data through all the base models, take their predictions, and then input those predictions into the meta-model. The meta-model's output is the final prediction.
+
+The intuition behind stacking is that while individual models may have particular strengths and weaknesses, a meta-model may be able to learn the best way to combine their predictions, to achieve better overall performance. Stacking has frequently been shown to outperform other ensemble methods in various tasks, given a careful choice of features, base-models, and stacking approach ([Kaggle AI report, 2023](https://www.kaggle.com/AI-Report-2023)). 
 
 ## Data split
 
@@ -172,12 +206,10 @@ fval <- ir_val[ ,c(28:41, 43:61)]
 
 ## Base-model training
 
-This chunk fits 3 base-models using the gridded calibration data with 10-fold cross-validation. Learn more about how these MLAs work by following links at: [randomForest](https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest), [xgboost](https://www.kaggle.com/rtatman/machine-learning-with-xgboost-in-r/),
-and [glmnet](https://www.rdocumentation.org/packages/glmnet/versions/4.1-8/topics/glmnet). The 3 base-models represent some of the main approaches to ML with tabular data ([Kaggle AI report, 2023](https://www.kaggle.com/AI-Report-2023)) i.e., [bootstrap aggregation](https://en.wikipedia.org/wiki/Bootstrap_aggregating), [gradient boosting](https://en.wikipedia.org/wiki/Gradient_boosting), and [L1/L2 regularization](https://medium.com/analytics-vidhya/regularization-understanding-l1-and-l2-regularization-for-deep-learning-a7b9e4a409bf). You can use `caretEnsemble` instead of `caret` as long as the feature variables (the `grids` in this case), and the `trainControl` methods are the same for each model in the `caretList` function. This shortens the length of this notebook but does not otherwise affect overall `caret` functionality. Note however that the calculations take a bit of time to run on a normal 8-core, 16 Gb memory computer, even when engaging all 8 cores. We initially fit the models with default-tuning of the relevant [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)). Should the need arise, we can always do more fine-tuning later.
+This chunk fits 3 presence/absence base-models using the gridded calibration data with 10-fold cross-validation. Learn more about how these MLAs work by following looking at: [randomForest](https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest), [xgboost](https://www.kaggle.com/rtatman/machine-learning-with-xgboost-in-r/),
+and [glmnet](https://www.rdocumentation.org/packages/glmnet/versions/4.1-8/topics/glmnet). The 3 base-models represent some of the main approaches to ML from tabular data ([Kaggle AI report, 2023](https://www.kaggle.com/AI-Report-2023)) i.e., [bootstrap aggregation](https://en.wikipedia.org/wiki/Bootstrap_aggregating), [gradient boosting](https://en.wikipedia.org/wiki/Gradient_boosting), and [L1/L2 regularization](https://medium.com/analytics-vidhya/regularization-understanding-l1-and-l2-regularization-for-deep-learning-a7b9e4a409bf). You can use `caretEnsemble` instead of `caret` as long as the feature variables (the `grids` in this case), and the `trainControl` methods are the same for each model in the `caretList` function. This shortens the length of this notebook but does not otherwise affect overall `caret` functionality. Note however that the calculations take a bit of time to run on a normal 8-core, 32 Gb memory computer, even when engaging all cores. We initially fit the models with default-tuning of the relevant [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)). Should the need arise, we can always do more fine-tuning later.
 
-```{r, results = 'hide'}
-dir.create("learners", showWarnings = FALSE)
-
+```{r, results = 'hide', error = TRUE}
 # Start doParallel
 seed <- 12358
 set.seed(seed)
@@ -186,9 +218,10 @@ registerDoParallel(mc)
 
 # Specify model training controls
 tc <- trainControl(method = "cv", number = 10, classProbs = TRUE,
-                   summaryFunction = twoClassSummary, allowParallel = TRUE, savePredictions = "final")
+                   summaryFunction = twoClassSummary, allowParallel = TRUE,
+                   savePredictions = "final")
 
-# Train 3 base learners using the calibration set
+# Train 3 base-learners using the calibration set
 blist <- caretList(fcal, lcal,
                    trControl = tc,
                    tuneList = NULL,
@@ -204,9 +237,9 @@ fname <- paste("./learners/", "base_blist.rds", sep = "")
 saveRDS(blist, fname)
 ```
 
-## Model stacking
+## Model stacking and validation
 
-```{r, results =  'hide'}
+```{r}
 # Start doParallel
 set.seed(seed)
 mc <- makeCluster(detectCores())
@@ -224,39 +257,270 @@ glm_stack <- train(preds, lval,
                    family = "binomial",
                    metric = "ROC")
 
-preds$stack <- predict(glm_stack, newdata = preds, type = "prob")
-caTools::colAUC(preds, lval)
-
-# Save fitted model objects
+# Save fitted model
 stopCluster(mc)
 fname <- paste("./learners/", "glm_stack.rds", sep = "")
 saveRDS(glm_stack, fname)
+
+# Generate predictions from the validation set
+stack <- as.vector(predict(glm_stack, newdata = preds, type = "prob"))
+preds <- cbind(preds, stack)
+preds <- preds[c('rf', 'xgbTree', 'glmnet', 'a')]
+names(preds)[names(preds) == 'a'] <- 'stacked'
+```
+
+```{r}
+# calculate ROC curves for the validation set
+# rf model
+roc_rf <- roc(lval, preds$rf)
+auc_rf <- auc(roc_rf)
+
+# xgbTree model
+roc_xgbTree <- roc(lval, preds$xgbTree)
+auc_xgbTree <- auc(roc_xgbTree)
+
+# glmnet model
+roc_glmnet <- roc(lval, preds$glmnet)
+auc_glmnet <- auc(roc_glmnet)
+
+# stacked model
+roc_stacked <- roc(lval, preds$stacked)
+auc_stacked <- auc(roc_stacked)
+
+# Compares areas under the validation set ROCs
+caTools::colAUC(preds, lval) 
+```
+
+```{r, fig.align = "center", fig.cap = "**Figure 2:** Classification ROC curves of the presence/absence base models for the validation set. `rf` model (blue), `xgbTree` model (yellow), `glmnet` model (green)."}
+
+par(pty="s", mar=c(4,4,1,1))
+plot(roc_rf, xlim=c(1,0), ylim=c(0,1), col="dodgerblue", cex.axis = 1, cex.lab = 1.3)
+lines(roc_xgbTree, col="#feb24c")
+lines(roc_glmnet, col="dark green")
 ```
 
 ## Spatial predictions
 
 ```{r}
-dir.create("maps")
-
 # Generate spatial predictions
 rfo.map <- predict(grids, blist$rf, type = "prob")
 xgb.map <- predict(grids, blist$xgbTree, type = "prob")
 glm.map <- predict(grids, blist$glmnet, type = "prob")
-spreds <- stack(rf.map, xt.map, gl.map)
-names(spreds) <- c("rf","xgbTreet", "glmnet")
+spreds <- stack(rfo.map, xgb.map, glm.map)
+names(spreds) <- c("rf","xgbTree", "glmnet")
 sta.map <- predict(spreds, glm_stack, type = "prob")
 
-# Write out geotif files
+# Write out irrigation prediction maps
+spreds <- stack(rfo.map, xgb.map, glm.map, sta.map)
+fname <- paste("./maps/", "UG_irrigation_preds.tif", sep = "")
+writeRaster(spreds, filename = fname, datatype = "FLT4S", options = "INTERLEAVE=BAND", overwrite = TRUE)
+writeRaster(sta.map, filename = "./maps/stacked_pred.tif", datatype = "FLT4S", overwrite = TRUE)
 ```
 
-## Small area estimation of irrigation
+\
+```{r ir_pred, echo=FALSE, fig.align="center", fig.cap="**Figure 3.** Irrigation prediction maps for the croplands of Uganda (2023).", out.width = '95%'}
 
-# Predicting irrigated crops
+knitr::include_graphics("./figures/UG_irrigation_preds.png")
+```
 
-## Base-model training
+The 3 base-model and the stacked-model irrigation prediction maps for Uganda are shown in Figure 3, following a few GIS cosmetics in [GRASS](https://grass.osgeo.org/). Superficially these look similar, but there are some differences in the receiver operator characteristics between them. At the moment the `rf` model dominates the weighting in the `stacked` model with a small contribution `xgbTree` model. Both the `xgbTree` and the `glmnet` could benefit from additional [model tuning](https://topepo.github.io/caret/model-training-and-tuning.html#customizing-the-tuning-process) during base-learner training. This might provide small overall performance improvements. While this may be computationally worth it in the context of e.g., a [Kaggle](https://www.kaggle.com/account/login) competition, it is not deemed necessary here, given the already very high [AUC](https://towardsdatascience.com/understanding-auc-roc-curve-68b2303cc9c5) performance of the `stacked` model on the validation set.
 
-## Model stacking
+# Small area estimates
+
+Small area estimation [(SAE](https://en.wikipedia.org/wiki/Small_area_estimation) is concerned with making statistical inferences about parameters or attributes for smaller sub-groups or areas within a larger ROI or population, where direct sample estimates can be unreliable due to small sample sizes. Multilevel regression and poststratification ([Gelman & Hill, 2007](doi:10.1017/CBO9780511790942)) has become a preferred method for addressing SAE problems for a number of reasons:
+
+* **Improving precision of estimates**: Often, large-scale surveys will have adequate sample sizes to provide reliable estimates for larger areas or regions, but not for any smaller subdivisions. By using MRP, we can borrow strength from related areas or make use of external sources of data to refine estimates ([Rao, 2015](https://onlinelibrary.wiley.com/doi/book/10.1002/9781118735855)).
+
+* **Cost-efficiency**: Conducting exhaustive surveys for small areas can be prohibitively expensive and time-consuming. SAE techniques allow researchers to make informed estimates without the need for intensive sampling in every small area.
+
+* **Use of auxiliary information**: MRP incorporates other sources of data (like administrative records, satellite imagery, or data from previous surveys) to improve the reliability of estimates. This auxiliary information can be especially beneficial in the context of land surveys where certain parameters like vegetation cover, land use changes, or soil quality might be correlated with other observable features ([Singh et al., 2005](https://www.researchgate.net/publication/237110155_Spatio-Temporal_Models_in_Small_Area_Estimation)).
+
+* **Meeting localized decision-making needs**: Decisions related to land use, conservation, agricultural policies and practices often need to be made at local or regional levels. Having precise, reliable and updateable data for these smaller areas is often critical for effective policymaking ([Pfeffermann, 2013](https://www.researchgate.net/publication/235656784_New_Important_Developments_in_Small_Area_Estimation)).
+
+* **Accounting for heterogeneity**: Land characteristics can vary significantly even over short distances. Using direct survey estimates might not capture this heterogeneity effectively, but SAE can, by leveraging both local data and broader trends, provide more accurate depictions of these variations ([Rao & Molina, 2015](https://openlibrary.org/books/OL33543403M/Small_Area_Estimation)).
+
+## Multilevel regression and poststratification
+
+Multilevel Regression and Poststratification (MRP) is a statistical method used for generating accurate small-area estimates from large-scale surveys. MRP combines the strengths of multilevel regression modeling with the technique of poststratification to provide more refined and accurate predictions for subgroups within broader populations. The process involves two main steps:
+
+**Multilevel regression**: In this step, a multilevel model is fit to the survey data. This model captures both individual-level responses and the variations across different subgroups or regions (e.g., states or districts). These models are particularly useful when data from smaller groups is sparse because they allow for "borrowing strength" from the larger dataset by modeling shared patterns across groups. Essentially, information from larger, more representative areas can inform predictions about smaller, less observed subgroups. A typical multilevel model in the land survey context is denoted by:
+
+$$
+\ Y_{ij} = X_{ij}\beta_{i} + Z_{ij}u_i + \epsilon_{ij} \
+$$
+
+Where:
+
+* \( Y_{ij} \) refers to the estimated oucomes in the *j*^th^ unit in the *i*^th^ administrative subdivision or other small area.
+* \( X_{ij} \)  is a design matrix for fixed effects associated with \( Y_{ij} \).
+* \( \beta_{i} \) refers to a matrix of population (fixed effect) parameters.
+* \( Z_{ij} \) is a design matrix for random effects associated with \( Y_{ij} \).
+* \( u_i \) refers to a vector of random effects for the *i*^th^ small area.
+* \( \epsilon_{ij} \) refers to an independent error term for the *j*^th^ unit in the *i*^th^ small area.
+
+Note that additional small area indices and their interactions can be included in the model specification. So for example in Uganda we might consider the current GADM district maps that contain ?? counties. The number of  districts and  counties change over time due to administrative decisions, creation of new districts or counties, or changes in administrative boundaries. When such changes occur it is beneficial to have a method that can rapidly accommodate and adjust for those.
+
+**Poststratification**: Once suitable regression model is in place, the next step is to adjust or weight the predictions based on known ROI characteristics. The adjustment process provides final estimates that are typically more representative of the actual ROI. For instance, if certain sub-areas are underrepresented in the survey, their responses can be up-weighted in the final area estimates.
+ 
+## MRP data setup
+
+```{r, echo = FALSE}
+rm(list=setdiff(ls(), c("irdat", "grids"))) ## scrubs extraneous objects in memory
+```
+
+```{r}
+# Survey variables
+saedat <- irdat[c('sid', 'lon', 'lat', 'x', 'y',  'irrigated', 's2', 's3')]
+saedat$estsize <- saedat$s2 * saedat$s3 ## are the shortest and longest plot side lengths
+saedat <- subset(saedat, estsize <= 10000)
+
+# Download and attach Uganda GADM-L4 shapefile (courtesy of: http://www.gadm.org)
+# and place it into the ./maps directory 
+unzip("./maps/gadm41_UGA_shp.zip", exdir = "./maps", overwrite = T)
+shape <- shapefile("./maps/gadm41_UGA_4.shp")
+geos <- saedat
+coordinates(geos) <- ~lon+lat
+projection(geos) <- projection(shape)
+gadm <- geos %over% shape
+saedat <- cbind(gadm[ ,c(5,7)], geos)
+saedat <- subset(saedat, select = -optional)
+colnames(saedat) <- c('district', 'county', 'sid', 'lon', 'lat', 'x', 'y', 'irrigated', 's2', 's3', 'estsize')
+
+# Attach stacked spatial predictions
+irpred <- raster("./maps/stacked_pred.tif")
+geos <- saedat
+coordinates(geos) <- ~x+y
+projection(geos) <- projection(irpred)
+irpred <- as.data.frame(extract(irpred, geos))
+colnames(irpred)[1] <- 'spred'
+saedat <- cbind(saedat, irpred)
+saedat <- na.omit(saedat)
+
+# Save `saedat` for reuse
+write.csv(saedat, "./data/saedat.csv", row.names = FALSE)
+
+# ROC based, "best", classification threshold
+ir_roc <- roc(saedat$irrigated, saedat$spred)
+coords(ir_roc, "best")
+saedat$sclass <- as.factor(ifelse(saedat$spred > 0.63, 'a', 'b'))
+confusionMatrix(saedat$irrigated, saedat$sclass)
+```
+
+## Multilevel regression
+
+```{r}
+saedat$irrigated <- as.numeric(ifelse(saedat$irrigated == 'a', 1, 0))
+
+# varying means (base) model
+mlm0 <- glmer(irrigated ~ 1 + (1|district), family = binomial, saedat)
+
+# varying intercepts model
+mlm1 <- glmer(irrigated ~ spred + (1|district), family = binomial, saedat)
+
+# random intercept & slope model
+mlm2 <- glmer(irrigated ~ spred + (spred|district), family = binomial, saedat) 
+
+# model comparison via ANOVA
+anova(mlm0, mlm1, mlm2)
+```
+
+The `mlm1` random intercept model appears to fit the data well based on the anova comparisons to some of the alternative specifications. While `mlm2` scores slightly beter than `mlm1` in terms of AIC, BIC, and logLik its random parameter values are highly correlated, meaning that it may be overparameterized. We therefore prefer the simpler formulation of `mlm1` for illustration. Other formulations are certainly possible. The following are the parameter estimates of the `mlm1` model on a logit scale.
+
+```{r}
+# mlm1 model summary
+summary(mlm1)
+```
+
+## Poststratification
+
+After fitting a suitable multilevel model (`mlm1`), we want to make inferences about the ROI i.e., cropland in our case. However, because of the survey sampling procedures that were used during the survey, our field sample is quite different from that predicted for the entire ROI. It is oversampled (by ~20% on average) as field enumerators were encouraged to seek out irrigated plots during the ground survey. This is where a poststratification table comes in. The table consists of e.g., area measurements, counts and auxiliary data for all combinations of the district-level characteristics used in the regression model. By using the poststratification table, we can weight the estimates from the regression model to more closely match the actual distribution of irrigated plots in the cropland ROI. The GADM district-level poststratification table for irrigation presence/absence in Uganda is provided below. The short variable names need translation:
+
+* **cat** refers to a GADM specific ID for district polygons in this case.
+* **district** the GADM hedistrict name.
+* **lamask** the total land area masked for open water in km^2^. 
+* **cpmask** the predicted cropland area, our ROI, in km^2^.
+* **aspred** the mean of the district-level stacked predictions of irrigation presence.
+* **irmask** is the predicted irrigated cropland area, in km^2^.
+* **irplt** refers to the number of irrigated plots that were observed in the field in 2023.
+* **nirplot** is the number of non-irrigated plots that were observed.
+* **mlmint** refers to the district-level `mlm1` intercept values, on a logit scale, for the random intercept model.
+* **mlmfix** refers to the fixed effect of the stacked predictor `spred` developed under Section 4.3.
+
+\
+```{r, echo = FALSE, results = 'asis'}
+vars <- read.table("./sae/poststrat_table.csv", header = T, sep = ",")
+datatable(vars)
+```
+
+The next chunk calculates adjusted proportions of irrigated croplands relative to  all croplands in Uganda. It is an aside, but we use it to calibrate the data to the irrigation mask map shown in Figure 4 to reduce the bias introduced by oversampling. Showing the basic oversampling adjustment technique beneficial for illustration here, because it is simple to calculate, easy to understand, and very similar to the more flexible MRP technique that follows.
+
+\
+```{r ir_mask, echo = FALSE, fig.align="center", fig.cap = "**Figure 4.** Predicted irrigated cropland area in Uganda (2023) with current GADM district boundary overlay.", out.width = '70%'}
+
+knitr::include_graphics("./figures/irrigation_mask.png")
+```
+
+```{r}
+# Load poststratification table
+post <- read.table("./sae/poststrat_table.csv", header = TRUE, sep = ",")
+post <- na.omit(post) ## omits Kampala district in which was not surveyed
+
+# Calculate proportions and weights by GADM district
+post$roi <- post$irmask / post$clmask ## the irrigated proportions of the ROI (Fig. 4)
+post$sam <- post$irplt / (post$irplt + post$nirplt) ## the survey-based proportions
+post$wgt <- post$roi / post$sam ## the sample adjustment weights
+post$adj <- post$sam * post$wgt ## the adjusted proportion of irrigated cropland
+
+# Calculate ROI wide statistics
+roi_prop_est <- round(mean(post$adj), digits = 3)
+roi_prop_SE <- round(sqrt((roi_prop_est * (1 - roi_prop_est)) / sum(post$irplt + post$nirplt)), digits = 3)
+roi_area_est <- round(sum(post$clmask), digits = 0)
+iri_area_est <- format(roi_area_est * roi_prop_est, format = 'f', big.mark = ',', digits = 0)
+conf_level <- 0.95 ## substitute other levels here
+options(scipen = 999)
+z <- qnorm(1 - (1 - conf_level)/2)
+ll <- roi_prop_est - (z * roi_prop_SE)
+ul <- roi_prop_est + (z * roi_prop_SE)
+lower_limit <- format(roi_area_est * ll, format = 'f', big.mark = ',', digits = 0)
+upper_limit <- format(roi_area_est * ul, format = 'f', big.mark = ',', digits = 0)
+```
+
+So, the adjusted survey estimate of the proportion of irrigated land in the ROI, calculated on the basis of the district-level poststratification, is \( Y_{i}^* \) = `r roi_prop_est` with a standard error of +/- `r roi_prop_SE`. This translates into an estimated cropland area with irrigation presence of \( A_{i}^* \) =  `r iri_area_est` km^2^, with a `r conf_level*100`% confidence interval of `r lower_limit` to `r upper_limit` km^2^. Note that the presence of irrigation does not imply that that all of the land in a 6.25 ha pixel, where is irrigation is present, is irrigated. The next chunk calculates the MRP-based estimates.
+
+```{r}
+post$mlm <- post$mlmfix * post$aspred + post$mlmint ## mlm model adjusted proportions on a logit scale
+post$mlmadj <- exp(post$mlm) / (exp(post$mlm) + 1) ## calculates inverse logit
+# post$mlmwgt <- post$mlmadj / post$sam ## calculates district weights for reference and future use
+
+# Calculate MRP statistics based on the `mlm1` model
+roi_prop_est <- round(mean(post$mlmadj), digits = 3)
+roi_prop_SE <- round(sqrt((roi_prop_est * (1 - roi_prop_est)) / sum(post$irplt + post$nirplt)), digits = 3)
+roi_area_est <- round(sum(post$clmask), digits = 0)
+iri_area_est <- format(roi_area_est * roi_prop_est, format = 'f', big.mark = ',', digits = 0)
+conf_level <- 0.95 ## substitute other confidence levels here
+options(scipen = 999)
+z <- qnorm(1 - (1 - conf_level)/2)
+ll <- roi_prop_est - (z * roi_prop_SE)
+ul <- roi_prop_est + (z * roi_prop_SE)
+lower_limit <- format(roi_area_est * ll, format = 'f', big.mark = ',', digits = 0)
+upper_limit <- format(roi_area_est * ul, format = 'f', big.mark = ',', digits = 0)
+```
+
+The adjusted survey estimate of the proportion of irrigated land in the ROI, calculated based on the MRP poststratification is \( Y_{i}^* \) = `r roi_prop_est` with a standard error of +/- `r roi_prop_SE`. This translates into a cropland area with irrigation presence of circa \( A_{i}^* \) =  `r iri_area_est` km^2^, with a `r conf_level*100`% confidence interval of `r lower_limit` to `r upper_limit` km^2^. 
+
+The two poststratication estimates of irrigation presence are quantitatively similar. However, the main advantages of using the MRP based approach is that it much more flexible in terms of accommodating different model types, including Bayesian MLMs (see e.g., [Kurz, 2023](https://bookdown.org/content/3890/)), MLM formulations and auxiliary variables. MRP also generates predictions that can be readily applied to different subnational and/or other small(er) areas when the data in those places are too sparse to allow for direct estimation.
 
 # Main takeaways
 
+
+
+# Recommendations
+
+* There may be a need to alter the survey sampling design to make this important step in the workflow more reproducible and cost-effective. We recommend switching to Spatially Balanced Sampling ([Grafström and Lundström, 2013](https://www.researchgate.net/publication/258451865_Why_Well_Spread_Probability_Samples_Are_Balanced). Spatially balanced sampling is a sampling methodology designed to achieve a more representative sample across a spatial domain. It is often used in soil, environmental, ecological and other earth science surveys where observations are spatially correlated. The goal is to ensure that sample locations are distributed evenly accross your region of interest (ROI). You can find a worked example of what such a setup might look like at GitHub [here](). Note that this might render the Multilevel Regression and Poststratification (MRP) approach ([Gelman and Hill, 2007](doi:10.1017/CBO9780511790942)) used in this notebook (see Section 5.1), largely unnecessary. Nonetheless, use MRP to adjust and poststratify survey results where necessary.
+
+* Wherever and whenever possible use direct field observations of evidence of irrigation infrastructure and presence of irrigation suitable water sources ahead of farmer or extension service provider interviews. Interviews tend to be time consuming, are generally not reproducible, and therefore largely unsuitable for irrigation mapping. The same applies for monitoring changes e.g, in cropland area, building counts and woody vegetation cover, among others. We recommend that before going out into the field that you find out as much as you can about your region of interest (ROI) by regularly using [GeoSurvey](https://geosurvey.qed.ai/about/).   
+
+* For every bit of field data that you collect with charitable donor, government or public funds, use the [FAIR](https://en.wikipedia.org/wiki/FAIR_data) data principles, preferably with open data access and completely reproducible data analysis workflows (see the [State of Open Data Report, 2023](https://www.springernature.com/gp/researchers/campaigns/state-of-open-data?sap-outbound-id=0E9598DD6079B1CB8F539738EB36071D243F9572&mkt-key=42010A0550671EDA9BA8E1D265AA75CE)). Data and undeloyed workflows that are not used (or reused) are useless for any practical application. There are many opportunities to do this effectively now, while protecting the privacy of individuals. Open platforms such as the Open Science Framework ([OSF](https://www.cos.io/products/osf)), [GitHub](https://github.com/) and [KoBoToolbox](https://www.kobotoolbox.org/), among others, are user friendly and provide much larger, more productive fora for scientific interactions and collaborations. FAIR may also prove to be more fundable than squirreling things away in Excel spreadsheets, even in the near-term.
+
+* Higher spatial resolution data does not necessarily lead to higher quality predictions. It is good practice to start modestly with adequate resolution data for the task at hand and subsequently move to higher resolution features, should they prove helpful and affordable. Remember that both high resolution data and their associated computational loads are not free. Ideally we would like to have reasonable predictions in a reasonable amount of time, which can be readily implemented, deployed and updated in countries like Uganda ... preferably on a standard laptop.
 
