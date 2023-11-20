@@ -280,7 +280,7 @@ ggplot(sam0_post_long, aes(x = value, fill = GID_level)) +
   theme_few()
 ```
 
-Figure 3 illustrates the scale dependence over the range of spatial variation in irrigation detection probabilities at the respective GID levels. This helps in understanding how much of the variability in the data is attributable to each scale in the hierarchy.
+Figure 3 illustrates the scale dependence over the range of spatial variation in irrigation detection probabilities at the respective GID levels. This helps in understanding how much of the variability in the data is attributable to each scale in the DGG hierarchy.
 
 # Main takeaways
 
