@@ -1,0 +1,231 @@
+---
+title: Bayesian MLMs for survey MRP -- Uganda irrigation data
+author: M.G. Walsh
+date: "`r format(Sys.time(), '%d, %B, %Y')`"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 1
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    fig_caption: yes
+    number_sections: yes
+    css: style1.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+# Preliminaries
+
+## Multilevel regression and poststratification (MRP)
+
+Multilevel Regression and Poststratification (MRP) is a statistical method used for generating accurate small-area estimates from large-scale surveys. MRP combines the strengths of multilevel regression modeling with the technique of poststratification to provide more refined and accurate predictions for subgroups within broader populations ([Gelman & Hill, 2007](doi:10.1017/CBO9780511790942)). The process involves two steps:
+
+**Multilevel regression**: In this step, a multilevel model is fit to the survey data. This model captures both individual-level responses and the variations across different subgroups or regions (e.g., states or districts). These models are particularly useful when data from smaller groups is sparse because they allow for "borrowing strength" from the larger dataset by modeling shared patterns across groups. Essentially, information from larger, more representative areas can inform predictions about smaller, less observed subgroups. A typical multilevel model in the land survey context is denoted by:
+
+$$
+\ Y_{ij} = X_{ij}\beta_{i} + Z_{ij}u_i + \epsilon_{ij} \
+$$
+
+Where:
+
+* \( Y_{ij} \) refers to the estimated oucomes in the *j*^th^ unit in the *i*^th^ administrative subdivision or other small area.
+* \( X_{ij} \)  is a design matrix for fixed effects associated with \( Y_{ij} \).
+* \( \beta_{i} \) refers to a matrix of population (fixed effect) parameters.
+* \( Z_{ij} \) is a design matrix for random effects associated with \( Y_{ij} \).
+* \( u_i \) refers to a vector of random effects for the *i*^th^ small area.
+* \( \epsilon_{ij} \) refers to an independent error term for the *j*^th^ unit in the *i*^th^ small area.
+
+Note that additional small area indices and their interactions can be included in the model specification. The number of districts and  counties change over time due to administrative decisions, creation of new districts or counties, or changes in administrative boundaries. When such changes occur it is beneficial to have a method that can rapidly accommodate and adjust for those changes.
+
+**Poststratification**: Once suitable regression model is in place, the next step is to weight the predictions based on known ROI characteristics. The adjustment process provides final estimates that are typically more representative of an actual Region of Interest ([ROI]()). For instance, if certain sub-areas are underrepresented in the survey, their responses can be up-weighted in the final area estimates.
+
+## Differences between Bayesian and standard (frequentist) MLMs 
+
+The choice between Bayesian multilevel models and standard multilevel models depends on the research context, the nature of the available data, computational resources, and the specific objectives of the analysis. Bayesian models typically offer a more nuanced approach to uncertainty and the integration of prior information but at the cost of increased computational complexity and the need for careful prior specification. On the other hand, standard models are more straightforward in terms of computation and interpretation but may not handle uncertainty and complex dependencies as effectively as Bayesian models. Below are some of the key conceptual and methodological distinctions between the two approaches:
+
+* **Foundational philosophy**:
+   - *Bayesian Multilevel Models*: These models are grounded in Bayesian statistics, which involves updating prior beliefs with new data using Bayes' theorem. Prior distributions for parameters are explicitly specified, and the final model output includes the posterior distributions of the parameters.
+   - *Standard Multilevel Models*: Also known as frequentist multilevel models, these do not use or rely on prior distributions. Instead, they focus on estimating fixed effects and random effects based on the likelihood of observing the given data, often using maximum likelihood estimation (MLE) or restricted maximum likelihood (REML).
+
+* **Incorporation of prior information**:
+   - *Bayesian Models*: allow for the integration of prior knowledge or expert opinion in the form of prior distributions. This can be particularly advantageous in areas with limited data or where historical information is valuable.
+   - *Standard Models*: do not incorporate prior information. They rely solely on the data for inference, which can be a limitation in cases with small sample sizes or sparse data.
+
+* **Uncertainty quantification**:
+   - *Bayesian Models*: Uncertainty in parameter estimates is expressed through the posterior distributions. This approach provides a more comprehensive understanding of uncertainty and variability in model parameters.
+   - *Standard Models*: Uncertainty is typically quantified using confidence intervals derived from standard errors of estimates, which may not always capture the full spectrum of uncertainty, especially in complex hierarchical structures.
+
+* **Computing approach**:
+   - *Bayesian Models*: Often require more sophisticated computational techniques like Markov Chain Monte Carlo (MCMC) methods to approximate the posterior distributions, which can be computationally intensive.
+   - **Standard Models**: These models generally use more straightforward optimization techniques for parameter estimation, like iterative algorithms for maximizing the likelihood, which are usually less computationally demanding.
+
+* **Flexibility and complexity**:
+   - *Bayesian Models*: Offer greater flexibility in model specification, allowing for more complex hierarchical structures and the modeling of intricate dependency structures within the data.
+   - *Standard Models*: While they can handle hierarchical data structures, they may be less flexible in terms of accommodating complex dependency patterns or non-standard data types.
+
+* **Interpretation of results**:
+   - *Bayesian Models*: The results are interpreted in terms of the probability of parameters given the data. This can be more intuitive, especially when communicating uncertainty.
+   - *Standard Models*: Emphasize point estimates and hypothesis testing, which can be less intuitive for expressing uncertainty or variability in estimates.
+
+# Objective
+
+The objective of this notebook is to demonstrate the use of the `brms` package for fitting and visualizing the underlying uncertainties of multilevel models in the context survey poststratification and small area estimation. It is intended as a companion piece to the Uganda irrigation notebook, which can be found [here]().
+
+# Setup
+
+To actually run this notebook, you will need to install and load the R-packages indicated in the chunk directly below.
+
+```{r}
+# Package names
+packages <- c("tidyverse", "brms", "ggthemes")
+
+# Install packages
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+    utils::install.packages(packages[!installed_packages])
+}
+
+# Load packages
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+The data that we will be using was collected by ... in 2023 and covers the croplands of Uganda with >23k georeferenced survey locations. For each location the presence/absence of irrigation was recorded. Irrigated locations were oversampled (by ~20% on average). District and county boundaries for the poststratification and small area estimation steps were obtained from [GADM](). An anonymized version of the dataset is available on OSF [here]().
+
+```{r}
+# read the data
+post <- read.table("./sae/saedat.csv", header = T, sep = ",")
+post$irrigated <- as.numeric(ifelse(post$irrigated == 'a', 1, 0))
+post <- select(post, 'district', 'irrigated', 'spred')
+```
+
+# Model fits
+
+## Random intercept, fixed slope model
+
+This model is Bayesian version of `mlm1` model in the Uganda irrigation notebook.
+
+```{r, error = TRUE, message = FALSE, warning = FALSE}
+priors = c(prior(normal(-4, 2), class = Intercept),
+           prior(normal(8, 3), class = b),
+           prior(cauchy(0, 1), class = sd))
+           
+# fit random intercept model
+brm1 <- brm(data = post,
+            family = bernoulli,
+            formula = irrigated ~ spred + (1 | district),
+            prior = priors,
+            iter = 4000, warmup = 1000, chains = 4, cores = 4,
+            control = list(adapt_delta = .975, max_treedepth = 20),
+            seed = 1235813)
+
+saveRDS(brm1, "./learners/brm1.rds") # save model object
+```
+
+```{r, echo = FALSE}
+print(brm1)
+```
+
+This is what the posterior distributions of the parameters look like:
+
+```{r, fig.align = "center", fig.cap = "**Figure 1:** Posterior parameter distributions of the `brm1` model."}
+
+# extract posterior parameter values
+brm1_post <- posterior_samples(brm1)
+
+# reshape data to long format
+brm1_post_long <- gather(brm1_post, key = "parameter", value = "value", b_Intercept, 
+                         b_spred, sd_district__Intercept)
+
+# plot the posterior distributions
+ggplot(brm1_post_long, aes(x = value, fill = parameter)) + 
+  geom_density(alpha = 0.7) +
+  facet_wrap(~parameter, scales = "free", nrow = 2, ncol = 2) +
+  theme_few()
+```
+
+```{r}
+# brm1 model fits
+brm1_fit <- as.data.frame(fitted(brm1, scale = "linear"))
+brm1_fit$brm1_padj <- exp(brm1_fit$Estimate) / (exp(brm1_fit$Estimate) + 1) ## inverse logit
+brm1_fit$brm1_Q2.5 <- exp(brm1_fit$Q2.5) / (exp(brm1_fit$Q2.5) + 1)
+brm1_fit$brm1_Q97.5 <- exp(brm1_fit$Q97.5) / (exp(brm1_fit$Q97.5) + 1)
+
+# brm1 model coefficients
+brm1_coef <- as.data.frame(coef(brm1))
+brm1_coef <- select(brm1_coef, 'district.Estimate.Intercept', 'district.Q2.5.Intercept',
+                    'district.Q97.5.Intercept')
+names(brm1_coef) <- c('brm1_est', 'brm1_Q2.5', 'brm1_Q97.5')
+```
+
+## Random intercept, random slope model
+
+This is the Bayes version of the `mlm2` model from the Uganda irrigation notebook.
+
+```{r, error = TRUE, message = FALSE, warning = FALSE}
+priors = c(prior(normal(-4, 2), class = Intercept),
+           prior(normal(8, 2), class = b),
+           prior(cauchy(0, 1), class = sd))
+           
+# fit random intercept model
+brm2 <- brm(data = post,
+            family = bernoulli,
+            formula = irrigated ~ spred + (spred | district),
+            # prior = priors,
+            iter = 4000, warmup = 1000, chains = 4, cores = 4,
+            control = list(adapt_delta = .975, max_treedepth = 20),
+            seed = 1235813)
+
+saveRDS(brm2, "./learners/brm2.rds")
+```
+
+```{r, echo = FALSE}
+print(brm2)
+```
+
+```{r, fig.align = "center", fig.cap = "**Figure 2:** Posterior parameter distributions of the `brm2` model.", out.height = '50%'}
+
+# extract posterior parameter values
+brm2_post <- posterior_samples(brm2)
+
+# reshape data to long format
+brm2_post_long <- gather(brm2_post, key = "parameter", value = "value", b_Intercept,
+                         b_spred, sd_district__Intercept, sd_district__spred)
+
+# plot the posterior distributions
+ggplot(brm2_post_long, aes(x = value, fill = parameter)) + 
+    geom_density(alpha = 0.7) +
+    facet_wrap(~parameter, scales = "free") +
+    theme_few()
+```
+
+```{r}
+# brm2 model fits
+brm2_fit <- as.data.frame(fitted(brm2, scale = "linear"))
+brm2_fit$brm2_padj <- exp(brm2_fit$Estimate) / (exp(brm2_fit$Estimate) + 1) ## calculates inverse logit
+brm2_fit$brm2_Q2.5 <- exp(brm2_fit$Q2.5) / (exp(brm2_fit$Q2.5) + 1)
+brm2_fit$brm2_Q97.5 <- exp(brm2_fit$Q97.5) / (exp(brm2_fit$Q97.5) + 1)
+
+# brm2 model coefficients
+brm2_coef <- as.data.frame(coef(brm2))
+brm2_coef <- select(brm2_coef, 'district.Estimate.Intercept', 'district.Q2.5.Intercept', 
+                    'district.Q97.5.Intercept', 'district.Estimate.spred', 'district.Q2.5.spred',
+                    'district.Q97.5.spred')
+names(brm2_coef) <- c('brm2i_est', 'brm2i_Q2.5', 'brm2i_Q97.5', 'brm2s_est', 'brm2s_Q2.5', 'brm2s_Q97.5')
+```
+
+# Poststratification
+
+```{r}
+# generate poststratification table
+post <- read.table("./sae/poststrat_table.csv", header = TRUE, sep = ",")
+post <- select(post, 'cat', 'district', 'clmask', 'irplt', 'nirplt', 'aspred')
+brm_post <- cbind(post, brm1_coef, brm2_coef)
+
+# save `brm_post` for reuse
+write.csv(brm_post, "./data/brm_poststrat_table.csv", row.names = FALSE)
+```
+
