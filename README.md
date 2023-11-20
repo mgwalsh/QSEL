@@ -1,2 +1,2 @@
 # QSEL
-Qudracci irrigation data from Uganda
+Quadracci Sustainable Engineering Lab irrigation data from Uganda.
