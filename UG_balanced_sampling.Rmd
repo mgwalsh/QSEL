@@ -1,0 +1,287 @@
+---
+title: A spatially balanced sampling framework for mapping and monitoring Uganda's croplands
+author: M.G. Walsh
+date: "`r format(Sys.time(), '%d, %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 1
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    fig_caption: true
+    number_sections: true
+    css: style1.css
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+# Introduction
+
+This notebook demonstrates setting up a representative and completely reproducible [sampling frame](https://en.wikipedia.org/wiki/Sampling_frame), which provides complete coverage of Uganda's croplands. Croplands are the primary [Region of Interest (ROI)](https://en.wikipedia.org/wiki/Region_of_interest) and the target for various land management interventions by the Government af Uganda and private sector entities. Based on a recent high-resolution remote sensing [GeoSurvey (2020)](https://osf.io/w5e6c/), croplands occupy  approximately 112,404 km^2^ of Uganda's overall land area (refer to Figure 1). Selecting an appropriate sampling frame for ground observations and measurements and/or experiments is a critical planning step, because it determines both the main and recurrent costs of any mapping or monitoring activities. The method being proposed here is spatially balanced sampling, which offers several advantages:
+
+* **Representation of spatial variability**: In agriculture, spatial variability is significant due to differences in soils, topography, microclimates, land use practices, and infrastructure. A spatially balanced sampling frame ensures that all these varied areas are represented in the sample, providing a more accurate picture of agricultural landscapes.
+
+* **Reduction of sampling bias**: Traditional random sampling can lead to clusters of sample points in certain areas, especially if these areas are more accessible or have higher concentrations of agricultural activity. This can result in biased estimates. Spatially balanced sampling minimizes this risk by ensuring samples are spread across the entire region of interest.
+
+* **Improved precision and accuracy**: By covering a more diverse range of conditions, spatially balanced sampling enhances the precision and accuracy of survey estimates. This is particularly important for detecting and monitoring subtle but crucial changes in agricultural practices, yields, and environmental impacts.
+
+* **Efficiency in data collection**: Spatially balanced sampling can be more efficient. By strategically selecting sample locations across the landscape, the method reduces the need for excessive travel between points, which is a significant consideration in large, diverse agricultural areas.
+
+* **Adaptability to different scales and purposes**: This approach is flexible and can be adapted to various scales (local, regional, national) and purposes (crop yield estimation, soil quality assessment, impact of agricultural practices on the environment, among others). This versatility makes it a valuable tool in diverse agricultural contexts.
+
+* **Enhanced capability for trend analysis**: In monitoring programs, where detecting changes over time is crucial, spatially balanced sampling ensures that the entire area of interest is consistently represented over different survey iterations. This enhances the ability to accurately detect and analyze temporal trends.
+
+* **Compliance with best practices and standards**: Using a spatially balanced sampling frame aligns with best practices in environmental and agricultural research. It ensures that the data collected is robust, credible and reproducible, which is essential for informing policy decisions and scientific research.
+
+This notebook is a companion to a notebook describing methods for mapping the occurrence of irrigation and small area estimation, which you can find [here](). It is maintained on OSF [here](), from where you can download and alter it as you see fit. As an example use case, we demonstrate a new method for assessing scale dependence in sampled irrigation detection probabilities on a Discreet Global Grid ([DGG]()), using a Bayesian multilevel model.
+
+# Setup
+
+To actually run this notebook, you will need to install and load the R packages indicated in the chunk directly below.
+
+```{r}
+# Package names
+packages <- c("osfr", "tidyverse", "rgdal", "raster", "sp", "BalancedSampling", "leaflet",
+              "htmlwidgets", "brms", "ggthemes")
+
+# Install packages
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Load packages
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+The following chunk downloads the needed needed geotiffs and shape file that are used to define the project's main ROI constraints i.e., the presence croplands and distance to roads (see Figure 1). Other sampling constraints such as the occurrence of irrigation, steep slopes, specific soil properties etc., might be imposed as well.
+
+```{r}
+# create a sampling folder in your current working directory
+dir.create("sampling", showWarnings = FALSE)
+
+# download GADM-L4 shapefile (courtesy: http://www.gadm.org)
+# unzip("./sampling/gadm41_UGA_shp.zip", exdir = "./sampling", overwrite = T)
+shape <- shapefile("./sampling/gadm36_UGA_4.shp")
+
+# load grids
+# download.file("https://osf.io/u73pd?raw=1", "./sampling/RW_GS_preds.zip")
+# unzip("RW_GS_preds.zip", overwrite=T)
+glist <- list.files(path="./sampling", pattern="tif", full.names = TRUE)
+grids <- stack(glist)
+```
+
+\
+```{r sample_grids, echo=FALSE, fig.align="center", fig.cap="**Figure 1.** Example constraint maps used to define a region of interest. Left: cropland mask, Right: distance to nearest road map, both with GADM district overlay.", out.width = '95%'}
+
+knitr::include_graphics("./figures/sample_constraints.png")
+```
+
+# Sampling
+
+This next chunk sets-up the layers for drawing a spatially balanced survey location samples from the ROI. We use the `overlay` and `lcube` functions from the `raster` (to create the ROI) and `BalancedSampling` (to sample the ROI). Note that apart from the cropland ROI layer, we also use a distance to nearest road layer to assist with field logistics. For this example, the distance has been set at 10 km, which essentially encompasses all of the croplands.
+ 
+```{r}
+# create a ROI image based on cropland mask and distance to nearest road
+cp <- 1 ## set cropland mask to 1 (present)
+dr <- 10 ## set maximum distance to the nearest road (in km)
+roi <- overlay(grids, fun=function(x) {return(ifelse(x[1] == cp && x[2] <= dr, 1, 0))})
+
+# extract ROI coordinates
+coord <- coordinates(roi)
+index <- extract(roi, coord)
+index <- as.data.frame(cbind(coord, index))
+rmask <- index[which(index$index == 1),]
+```
+
+The sampling method implements the cube approach of [Deville and Tillé (2004)](https://academic.oup.com/biomet/article-abstract/91/4/893/459329?redirectedFrom=fulltext) as implemented in the [BalancedSampling]() package ([Grafström, Lisic and Prentius, 2022](https://cran.r-project.org/web/packages/BalancedSampling/BalancedSampling.pdf)). This allows sampling based on the relevant inclusion probabilities while aiming for balance and spread with respect to speciﬁed covariates and/or constraints.
+
+```{r}
+# set sampling parameters
+N <- nrow(rmask) ## ROI size (in 250 m pixels)
+n <- round(N/16*0.15,0) ## set sample size (change this when needed)
+p <- rep(n/N,N)  ## calculate the inclusion probabilities
+
+# draw spatially balanced sample
+set.seed(85321) ## sets a randomization seed
+B <- cbind(p, rmask[,1], rmask[,2]) ## specifies spatial balancing variables
+rsamp <- cube(p, B) ## samples from the ROI
+```
+
+In this case potential survey sites falling within the ROI were selected purely for spatial balance, which entails that the mean coordinates of sample sites are close to the mean coordinates of all points in the sampling frame and have adequate spatial spread. This ensures that the observations are not clustered with respect to the spatial coordinates, see [Grafström and Schelin (2014)](https://cran.r-project.org/web/packages/BalancedSampling/index.html).
+
+# Sampling frame
+
+The next chunks generate an an initial output file and a map of the proposed sampling frame.
+
+```{r}
+# extract sample coordinates
+x <- rmask[rsamp,1]
+y <- rmask[rsamp,2]
+xy <- data.frame(cbind(x,y))
+
+# attach GADM-L4 adimistrative unit names from shape
+coordinates(xy) <- ~x+y
+crs(xy) <- "+proj=laea +ellps=WGS84 +lon_0=20 +lat_0=5 +units=m +no_defs"
+sloc <- spTransform(xy, CRS(proj4string(shape)))
+gadm <- sloc %over% shape
+sloc <- as.data.frame(sloc)
+samp <- cbind(gadm[ ,c(4,6,8,10)], sloc)
+colnames(samp) <- c('district', 'county', 'ward', 'parish', 'lon', 'lat')
+```
+
+The zoomable map below shows where the proposed sampling locations are located in Uganda.
+
+```{r}
+# Sample locations
+w <- leaflet() %>%
+  setView(lng = mean(samp$lon), lat = mean(samp$lat), zoom = 7) %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik) %>%
+  addCircleMarkers(samp$lon, samp$lat,
+                   color = "dodgerblue",
+                   stroke = FALSE,
+                   fillOpacity = 0.8,
+                   radius = 5,
+                   clusterOptions = markerClusterOptions(maxClusterRadius = 30))
+
+saveWidget(w, 'UG_sampling_locs.html', selfcontained = T) ## save leaflet map
+w ## plot widget 
+```
+
+# Using DGGs
+
+The main problem with using administrative divisions ([AD](https://en.wikipedia.org/wiki/Administrative_division)) such as districts, wards and parishes, for sampling, reporting and communicating survey statistics are that their boundaries can change due redistricting and gerrymandering. ADs also differ in size, shape and complexity from country to country. Hence, surveyors use Discreet Global Grids ([DGGs](https://en.wikipedia.org/wiki/Discrete_global_grid)) for mapping and land assessment. The main advantages are:
+
+* **Accuracy and precision**: DGGs allow surveyors to precisely and accurately pinpoint survey areas and sampling locations anywhere on the earth's surface. This is essential for creating detailed maps, area estimates and monitoring products at high resolution over large land areas.
+
+* **Standardization**: Using a DGG system provides a standardized method of measurement that can be universally understood and applied. Unlike latitude and longitude lines, which converge at the poles, DGGs provide uniform coverage and cell size across the globe. This uniformity is particularly useful for most geostatistical analyses, as it removes some of the distortions associated with spherical coordinates.
+
+* **Scalability**: DGGs can be designed at different resolutions, allowing for both broad global analyses and detailed local studies. Scalability is essential for applications ranging from global climate and economic models to local and rural planning efforts.
+
+* **Data sharing**: With standardized DGG coordinates, surveyors can easily share and compare data with other professionals e.g., urban and rural planners, engineers, foresters, rangeland and wildlife managers, climate modelers. national statistical bureaus, and international development agencies (e.g. FAO), among many others. This should improve consistency in planning and development projects.
+
+* **Efficiency in field work**: Using grid coordinates allows surveyors to efficiently plan, prioritize and execute field work. They can quickly locate and assess specific points of access to a site, saving time and resources.
+
+* **Historical data integration**: Grid coordinates enable surveyors to integrate historical data with new data. Fortunately, if the historical data are georeferenced, standardized DGGs can be retrofitted to them. This is important in areas where land use has changed over time, or where historical maps need to be compared with current ones.
+For environmental studies and land use planning, grid coordinates help in accurately assessing land features and their changes over time, aiding in sustainable development and conservation efforts.
+
+## DGG setup
+
+The first thing to do is to specify GIDs at different scales of the DGG. The next chunk sets these up in hierarchically nested levels on the Lambert Azimuthal Equal Area (LAEA) coordinate reference system that used to define our region of interest. The resulting GIDs can be thought of as an address (geocode) on one of many possible DGGs.
+
+```{r}
+
+# specify vector of resolution values for each DGG level
+resolution <- c(100000, 50000, 25000, 12500)
+
+# initialize an empty list to store the results
+gids <- list()
+
+# loop over each resolution value
+for (i in 1:length(resolution)) {
+    res.pixel <- resolution[i]
+    xgid <- ceiling(abs(xy$x)/res.pixel)
+    ygid <- ceiling(abs(xy$y)/res.pixel)
+    gidx <- ifelse(xy$x < 0, paste("W", xgid, sep=""), paste("E", xgid, sep=""))
+    gidy <- ifelse(xy$y < 0, paste("S", ygid, sep=""), paste("N", ygid, sep=""))
+    gids[[i]] <- paste(gidx, gidy, sep="")
+}
+
+# append and write out `samp` dataframe
+gids <- data.frame(gids)
+names(gids) <- c("L1", "L2", "L3", "L4")
+xy <- as.data.frame(xy)
+samp <- cbind(samp, xy, gids)
+write.csv(samp, "./sampling/UG_cropland_sample.csv")
+```
+
+```{r, echo = FALSE}
+str(samp)
+```
+
+The main output dataframe, `samp`, contains `r nrow(samp)` proposed sampling locations with their associated GADM administrative divisions, GIDs at different DGG resolutions, lon/lat and LAEA coordinates. It is written out as a `.csv` file, `UG_cropland_sample.csv`, and you can use this as waypoint input to a GPS (see e.g., [GPSBabel](https://www.gpsbabel.org)), tablet or smart phone for in-the-field navigation. The next step is to link a map of areas predicted to have smallholder irrigation (see Figure 2) to the `samp` dataframe (see Figure 2).
+
+\
+```{r sample_data, echo=FALSE, fig.align="center", fig.cap="**Figure 2.** Proposed sampling location data. Left: sample locations, Right: predicted presence/absence of smallholder irrigation, both with GADM district and GID Level-1 overlays.", out.width = '95%'}
+
+knitr::include_graphics("./figures/balanced_sample.png")
+```
+
+The next chunk extracts the irrigation presence/absence values to the `samp` dataframe.
+
+```{r}
+coordinates(samp) <- ~x+y
+projection(samp) <- projection(grids)
+
+# Extract irrigation raster values at survey locations
+irgrid <- extract(grids, samp)
+samp <- as.data.frame(cbind(samp, irgrid))
+samp$CP_mask.PERMANENT <- NULL
+samp$DOR2.PERMANENT <- NULL
+names(samp)[11] <- "irrigated"
+```
+
+## Use case: Modeling scale dependence in irrigation detection probabilities
+
+Scale dependence refers to the idea that processes and patterns can vary when observed at different spatial or temporal scales. This concept is essential for land use mapping and monitoring because it acknowledges that the behavior and relationships of agricultural systems can change depending on the scale of observation. DGGs are as per their definition hierarchical and nested, just like administrative divisions or students in classrooms, in schools, etc. The bare bones model structure for a nested model with 4 levels is as follows:
+
+$$
+logit(Y_{ijklm}) = \beta_0 + u_{i} + v_{ij} + w_{ijk} + z_{ijkl} + \epsilon_{ijklm}
+$$
+
+Where:
+
+* \( logit(Y_{ijklm}) \) refers to .
+* \( \beta_{0} \)
+
+The next chunk fits this as a Bayesian multilevel regression model using the `bmrs` package ([Bürkner et al., 2023](https://cran.r-project.org/web/packages/brms/index.html)). Note that the priors have been commented out. This will induce an initial fit with noninformative priors. You can change that if you would like.
+
+```{r, error = TRUE, message = FALSE, warning = FALSE}
+priors = c(prior(normal(-2, 2), class = Intercept),
+           prior(cauchy(0, 2), class = sd, group = L1),
+           prior(cauchy(0, 1), class = sd, group = L2),
+           prior(cauchy(0, 1), class = sd, group = L3),
+           prior(cauchy(0, 1), class = sd, group = L4))
+
+# fit random intercept model
+sam0 <- brm(data = samp,
+            family = bernoulli,
+            formula = irrigated ~ 1 + (1 | L1/L2/L3/L4),
+            # prior = priors,
+            iter = 4000, warmup = 1000, chains = 4, cores = 6,
+            control = list(adapt_delta = .975, max_treedepth = 20),
+            seed = 1235813)
+
+saveRDS(sam0, "./sampling/dgg_irrigation_detection.rds") # save model object
+```
+
+```{r, echo = FALSE}
+summary(sam0)
+```
+
+This is what the posterior random effects (GID level) distributions look like ...
+
+```{r, fig.align = "center", fig.cap = "**Figure 3:** Posterior distributions of random effects over the range of variation at the GID level. The values on the abcissa are in standard deviations relative to the population-level intercept."}
+
+# extract posterior parameter values
+sam0_post <- posterior_samples(sam0)
+names(sam0_post)[c(1:5)] <- c('Intercept', 'L1', 'L2', 'L3', 'L4')
+
+# reshape data to long format
+sam0_post_long <- gather(sam0_post, key = "GID_level", value = "value",  L1, L2, L3, L4)
+
+# plot the posterior distributions
+ggplot(sam0_post_long, aes(x = value, fill = GID_level)) +
+  geom_density(alpha = 0.7) +
+  labs(x = "Values", y = "Density", fill = "GID level") +
+  theme_few()
+```
+
+Figure 3 illustrates the scale dependence over the range of spatial variation in irrigation detection probabilities at the respective GID levels. This helps in understanding how much of the variability in the data is attributable to each scale in the hierarchy.
+
+# Main takeaways
+
+
